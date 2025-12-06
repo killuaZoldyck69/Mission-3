@@ -5,6 +5,7 @@ dotenv.config({ path: path.join(process.cwd(), ".env") });
 
 const config = {
   connection_str: process.env.CONNECTION_STR,
+  jwt_secret: process.env.JWT_SECRET,
   port: process.env.PORT,
 };
 
