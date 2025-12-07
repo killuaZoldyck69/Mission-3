@@ -20,4 +20,11 @@ router.put(
   vehicleControllers.updateVehicle
 );
 
+router.delete(
+  "/vehicles/:vehicleId",
+  auth,
+  isAdmin,
+  vehicleControllers.deleteVehicle
+);
+
 export const vehicleRouter = router;

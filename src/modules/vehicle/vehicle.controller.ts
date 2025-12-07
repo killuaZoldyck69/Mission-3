@@ -102,9 +102,48 @@ const updateVehicle = async (req: Request, res: Response) => {
   }
 };
 
+const deleteVehicle = async (req: Request, res: Response) => {
+  try {
+    const result = await vehicleService.deleteVehicle(
+      req.params.vehicleId as string
+    );
+
+    console.log(result);
+
+    // If result is undefined, the ID didn't exist in the DB
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Vehicle deleted successfully",
+    });
+  } catch (error: any) {
+    console.log("Error deleting vehicle:", error);
+
+    // Handle our custom business rule error
+    if (error.message === "Cannot delete vehicle with active bookings") {
+      return res.status(400).json({
+        // 400 Bad Request
+        success: false,
+        message: "Cannot delete vehicle because it has active bookings",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong on the server",
+    });
+  }
+};
 export const vehicleControllers = {
   createVehicle,
   getAllVehicles,
   getSingleVehicle,
   updateVehicle,
+  deleteVehicle,
 };
