@@ -17,6 +17,8 @@ const isAdmin = (req: Request, res: Response, next: NextFunction) => {
       message: "Forbidden: You do not have permission to perform this action",
     });
   }
+
+  next();
 };
 
 export default isAdmin;
