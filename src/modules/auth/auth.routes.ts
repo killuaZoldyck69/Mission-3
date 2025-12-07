@@ -1,5 +1,6 @@
 import express from "express";
 import { authControllers } from "./auth.controller";
+import auth from "../../middlewares/auth.middleware";
 
 const router = express.Router();
 
@@ -7,6 +8,6 @@ const router = express.Router();
 
 router.post("/signup", authControllers.signUp);
 
-router.post("/signin", authControllers.signIn);
+router.post("/signin", auth, authControllers.signIn);
 
 export const authRouter = router;
