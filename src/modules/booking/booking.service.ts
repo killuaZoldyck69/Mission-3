@@ -59,6 +59,51 @@ const createBooking = async (payload: any) => {
   };
 };
 
+const getAllBookings = async (userId: string, role: string) => {
+  let queryText = "";
+  let values: any[] = [];
+
+  if (role === "admin") {
+    // ADMIN QUERY: Get ALL bookings + User Details + Vehicle Details
+    // We use 'json_build_object' to create the nested structure you asked for
+    queryText = `
+      SELECT 
+        b.id, 
+        b.customer_id, 
+        b.vehicle_id, 
+        b.rent_start_date, 
+        b.rent_end_date, 
+        b.total_price, 
+        b.status,
+        json_build_object('name', u.name, 'email', u.email) AS customer,
+        json_build_object('vehicle_name', v.vehicle_name, 'registration_number', v.registration_number) AS vehicle
+      FROM bookings b
+      JOIN users u ON b.customer_id = u.id
+      JOIN vehicles v ON b.vehicle_id = v.id;
+    `;
+  } else {
+    // CUSTOMER QUERY: Get OWN bookings + Vehicle Details (No need for user info)
+    queryText = `
+      SELECT 
+        b.id, 
+        b.vehicle_id, 
+        b.rent_start_date, 
+        b.rent_end_date, 
+        b.total_price, 
+        b.status,
+        json_build_object('vehicle_name', v.vehicle_name, 'registration_number', v.registration_number, 'type', v.type) AS vehicle
+      FROM bookings b
+      JOIN vehicles v ON b.vehicle_id = v.id
+      WHERE b.customer_id = $1;
+    `;
+    values = [userId];
+  }
+
+  const result = await pool.query(queryText, values);
+  return result.rows;
+};
+
 export const bookingServices = {
   createBooking,
+  getAllBookings,
 };

@@ -8,4 +8,6 @@ const router = Router();
 
 router.post("/", auth, bookingControllers.createBooking);
 
+router.get("/", auth, bookingControllers.getAllBookings);
+
 export const bookingRouter = router;
