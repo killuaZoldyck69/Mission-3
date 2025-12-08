@@ -103,7 +103,60 @@ const getAllBookings = async (userId: string, role: string) => {
   return result.rows;
 };
 
+const updateBooking = async (
+  bookingId: string,
+  status: string,
+  userId: string,
+  role: string
+) => {
+  // 1. Get the existing Booking to check ownership and vehicle_id
+  const checkQuery = `SELECT * FROM bookings WHERE id = $1`;
+  const checkResult = await pool.query(checkQuery, [bookingId]);
+
+  if (checkResult.rows.length === 0) {
+    throw new Error("Booking not found");
+  }
+
+  const booking = checkResult.rows[0];
+
+  // 2. Permission Logic
+  if (role === "customer") {
+    // Rule: Customer can only update their own booking
+    if (booking.customer_id !== userId) {
+      throw new Error("You are not authorized to update this booking");
+    }
+    // Rule: Customer can ONLY set status to 'cancelled'
+    if (status !== "cancelled") {
+      throw new Error("Customers can only cancel bookings");
+    }
+  }
+
+  // 3. Update the Booking Status
+  const updateQuery = `
+    UPDATE bookings 
+    SET status = $1 
+    WHERE id = $2 
+    RETURNING *;
+  `;
+  const updateResult = await pool.query(updateQuery, [status, bookingId]);
+  const updatedBooking = updateResult.rows[0];
+
+  // 4. Handle Vehicle Availability
+  // If the booking is finished (returned) or cancelled, free up the car.
+  if (status === "returned" || status === "cancelled") {
+    const freeVehicleQuery = `
+      UPDATE vehicles 
+      SET availability_status = 'available' 
+      WHERE id = $1;
+    `;
+    await pool.query(freeVehicleQuery, [booking.vehicle_id]);
+  }
+
+  return updatedBooking;
+};
+
 export const bookingServices = {
   createBooking,
   getAllBookings,
+  updateBooking,
 };
