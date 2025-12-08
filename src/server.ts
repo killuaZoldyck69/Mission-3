@@ -20,7 +20,7 @@ app.use("/api/v1/auth", authRouter);
 
 app.use("/api/v1", vehicleRouter);
 
-app.use("/api/v1", userRouter);
+app.use("/api/v1/users", userRouter);
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);

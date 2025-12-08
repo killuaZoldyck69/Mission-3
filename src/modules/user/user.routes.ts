@@ -7,6 +7,8 @@ const router = Router();
 
 // /api/v1/users
 
-router.get("/users", auth, isAdmin, userControllers.getAllUsers);
+router.get("/", auth, isAdmin, userControllers.getAllUsers);
+
+router.put("/:userId", auth, userControllers.updateUser);
 
 export const userRouter = router;
