@@ -52,6 +52,12 @@ const createBooking = async (payload: any) => {
 
   return {
     ...newBooking,
+    rent_start_date: new Date(newBooking.rent_start_date).toLocaleDateString(
+      "en-CA"
+    ),
+    rent_end_date: new Date(newBooking.rent_end_date).toLocaleDateString(
+      "en-CA"
+    ),
     vehicle: {
       vehicle_name: vehicle.vehicle_name,
       daily_rent_price: vehicle.daily_rent_price,
@@ -59,39 +65,52 @@ const createBooking = async (payload: any) => {
   };
 };
 
+const returnExpiredBookings = async () => {
+  const updateBookingsQuery = `
+  UPDATE bookings
+  SET status = 'returned'
+  WHERE status = 'active' AND rent_end_date < NOW()
+  RETURNING vehicle_id;
+  `;
+
+  const result = await pool.query(updateBookingsQuery);
+  const affectedVehicleIds = result.rows.map((row) => row.vehicle_id);
+
+  if (affectedVehicleIds.length > 0) {
+    const updateVehiclesQuery = `
+      UPDATE vehicles
+      SET availability_status = 'available'
+      WHERE id = ANY($1::int[]);
+    `;
+
+    await pool.query(updateVehiclesQuery, [affectedVehicleIds]);
+    console.log(`♻️ Auto-returned ${affectedVehicleIds.length} vehicles.`);
+  }
+};
+
 const getAllBookings = async (userId: string, role: string) => {
+  await returnExpiredBookings();
+
   let queryText = "";
   let values: any[] = [];
 
   if (role === "admin") {
-    // ADMIN QUERY: Get ALL bookings + User Details + Vehicle Details
-    // We use 'json_build_object' to create the nested structure you asked for
+    // ADMIN: Select columns
     queryText = `
       SELECT 
-        b.id, 
-        b.customer_id, 
-        b.vehicle_id, 
-        b.rent_start_date, 
-        b.rent_end_date, 
-        b.total_price, 
-        b.status,
-        json_build_object('name', u.name, 'email', u.email) AS customer,
-        json_build_object('vehicle_name', v.vehicle_name, 'registration_number', v.registration_number) AS vehicle
+        b.id, b.rent_start_date, b.rent_end_date, b.total_price, b.status, b.customer_id, b.vehicle_id,
+        u.name AS user_name, u.email AS user_email,
+        v.vehicle_name, v.registration_number
       FROM bookings b
       JOIN users u ON b.customer_id = u.id
       JOIN vehicles v ON b.vehicle_id = v.id;
     `;
   } else {
-    // CUSTOMER QUERY: Get OWN bookings + Vehicle Details (No need for user info)
+    // CUSTOMER: Select only booking and vehicle info
     queryText = `
       SELECT 
-        b.id, 
-        b.vehicle_id, 
-        b.rent_start_date, 
-        b.rent_end_date, 
-        b.total_price, 
-        b.status,
-        json_build_object('vehicle_name', v.vehicle_name, 'registration_number', v.registration_number, 'type', v.type) AS vehicle
+        b.id, b.rent_start_date, b.rent_end_date, b.total_price, b.status, b.vehicle_id,
+        v.vehicle_name, v.registration_number, v.type
       FROM bookings b
       JOIN vehicles v ON b.vehicle_id = v.id
       WHERE b.customer_id = $1;
@@ -100,7 +119,52 @@ const getAllBookings = async (userId: string, role: string) => {
   }
 
   const result = await pool.query(queryText, values);
-  return result.rows;
+
+  const formattedBookings = result.rows.map((row) => {
+    let booking;
+
+    if (role === "admin") {
+      booking = {
+        id: row.id,
+        customer_id: row.customer_id,
+        vehicle_id: row.vehicle_id,
+        rent_start_date: new Date(row.rent_start_date).toLocaleDateString(
+          "en-CA"
+        ),
+        rent_end_date: new Date(row.rent_end_date).toLocaleDateString("en-CA"),
+        total_price: row.total_price,
+        status: row.status,
+        customer: {
+          name: row.user_name,
+          email: row.user_email,
+        },
+        vehicle: {
+          vehicle_name: row.vehicle_name,
+          registration_number: row.registration_number,
+        },
+      };
+    } else {
+      booking = {
+        id: row.id,
+        vehicle_id: row.vehicle_id,
+        rent_start_date: new Date(row.rent_start_date)
+          .toISOString()
+          .split("T")[0],
+        rent_end_date: new Date(row.rent_end_date).toISOString().split("T")[0],
+        total_price: row.total_price,
+        status: row.status,
+        vehicle: {
+          vehicle_name: row.vehicle_name,
+          registration_number: row.registration_number,
+          type: row.type,
+        },
+      };
+    }
+
+    return booking;
+  });
+
+  return formattedBookings;
 };
 
 const updateBooking = async (
@@ -109,7 +173,6 @@ const updateBooking = async (
   userId: string,
   role: string
 ) => {
-  // 1. Get the existing Booking to check ownership and vehicle_id
   const checkQuery = `SELECT * FROM bookings WHERE id = $1`;
   const checkResult = await pool.query(checkQuery, [bookingId]);
 
@@ -119,7 +182,7 @@ const updateBooking = async (
 
   const booking = checkResult.rows[0];
 
-  // 2. Permission Logic
+  // Permission Logic
   if (role === "customer") {
     // Rule: Customer can only update their own booking
     if (booking.customer_id !== userId) {
@@ -131,7 +194,7 @@ const updateBooking = async (
     }
   }
 
-  // 3. Update the Booking Status
+  // Update the Booking Status
   const updateQuery = `
     UPDATE bookings 
     SET status = $1 
@@ -141,8 +204,14 @@ const updateBooking = async (
   const updateResult = await pool.query(updateQuery, [status, bookingId]);
   const updatedBooking = updateResult.rows[0];
 
-  // 4. Handle Vehicle Availability
-  // If the booking is finished (returned) or cancelled, free up the car.
+  updatedBooking.rent_start_date = new Date(
+    updatedBooking.rent_start_date
+  ).toLocaleDateString("en-CA");
+  updatedBooking.rent_end_date = new Date(
+    updatedBooking.rent_end_date
+  ).toLocaleDateString("en-CA");
+
+  // If the booking is finished (returned) or cancelled, free up the car
   if (status === "returned" || status === "cancelled") {
     const freeVehicleQuery = `
       UPDATE vehicles 
@@ -159,4 +228,5 @@ export const bookingServices = {
   createBooking,
   getAllBookings,
   updateBooking,
+  returnExpiredBookings,
 };

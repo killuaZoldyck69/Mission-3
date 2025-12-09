@@ -1,4 +1,5 @@
 import { pool } from "../../config/db";
+import { bookingServices } from "../booking/booking.service";
 
 const createVehicle = async (payload: Record<string, unknown>) => {
   const {
@@ -35,12 +36,15 @@ const createVehicle = async (payload: Record<string, unknown>) => {
 };
 
 const getAllVehicles = async () => {
+  await bookingServices.returnExpiredBookings();
+
   const queryText = `SELECT * FROM vehicles`;
   const result = await pool.query(queryText);
   return result.rows;
 };
 
 const getSingleVehicle = async (vehicleId: string) => {
+  await bookingServices.returnExpiredBookings();
   const queryText = `SELECT * FROM vehicles WHERE id = ($1)`;
   const result = await pool.query(queryText, [vehicleId]);
   return result.rows;

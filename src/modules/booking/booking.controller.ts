@@ -3,11 +3,11 @@ import { bookingServices } from "./booking.service";
 
 const createBooking = async (req: Request, res: Response) => {
   try {
-    // const user = req.user as any;
+    const user = req.user as any;
 
-    // if (user.role === "customer") {
-    //   req.body.customer_id = user.id;
-    // }
+    if (user.role === "customer") {
+      req.body.customer_id = user.id;
+    }
 
     const result = await bookingServices.createBooking(req.body);
 
@@ -35,7 +35,7 @@ const getAllBookings = async (req: Request, res: Response) => {
     const message =
       user.role === "admin"
         ? "All bookings retrieved successfully"
-        : "My bookings retrieved successfully";
+        : "Your bookings retrieved successfully";
 
     res.status(200).json({
       success: true,

@@ -7,24 +7,14 @@ const router = Router();
 
 // /api/v1/vehicles
 
-router.post("/vehicles", auth, isAdmin, vehicleControllers.createVehicle);
+router.post("/", auth, isAdmin, vehicleControllers.createVehicle);
 
-router.get("/vehicles", vehicleControllers.getAllVehicles);
+router.get("/", vehicleControllers.getAllVehicles);
 
-router.get("/vehicles/:vehicleId", vehicleControllers.getSingleVehicle);
+router.get("/:vehicleId", vehicleControllers.getSingleVehicle);
 
-router.put(
-  "/vehicles/:vehicleId",
-  auth,
-  isAdmin,
-  vehicleControllers.updateVehicle
-);
+router.put("/:vehicleId", auth, isAdmin, vehicleControllers.updateVehicle);
 
-router.delete(
-  "/vehicles/:vehicleId",
-  auth,
-  isAdmin,
-  vehicleControllers.deleteVehicle
-);
+router.delete("/:vehicleId", auth, isAdmin, vehicleControllers.deleteVehicle);
 
 export const vehicleRouter = router;
