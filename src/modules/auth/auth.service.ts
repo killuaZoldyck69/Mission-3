@@ -8,7 +8,7 @@ const signUp = async (payload: Record<string, unknown>) => {
 
   const hashedPass = await bcrypt.hash(
     password as string,
-    config.bcrypt_solt_round as string
+    Number(config.bcrypt_solt_round as string)
   );
 
   const queryText = `
