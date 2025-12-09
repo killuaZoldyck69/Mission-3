@@ -6,7 +6,10 @@ import config from "../../config";
 const signUp = async (payload: Record<string, unknown>) => {
   const { name, email, password, phone, role } = payload;
 
-  const hashedPass = await bcrypt.hash(password as string, 10);
+  const hashedPass = await bcrypt.hash(
+    password as string,
+    config.bcrypt_solt_round as string
+  );
 
   const queryText = `
     INSERT INTO users(name, email, password, phone, role) VALUES ($1, $2, $3, $4, $5) RETURNING *;
