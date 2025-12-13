@@ -3,6 +3,11 @@ import config from "./config";
 
 const port = config.port || 4000;
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
+// Only listen if not running in a Vercel serverless environment
+if (process.env.NODE_ENV !== "production") {
+  app.listen(port, () => {
+    console.log(`Example app listening on port ${port}`);
+  });
+}
+
+export default app;
